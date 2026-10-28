@@ -9,7 +9,7 @@ import { ClassesView } from './views/ClassesView';
 import { TeachersView } from './views/TeachersView';
 import { PeriodsView } from './views/PeriodsView';
 import { SettingsView } from './views/SettingsView';
-import { ShieldCheck, ScanFace, Grid3X3, LayoutDashboard, Database } from 'lucide-react';
+import { ShieldCheck, ScanFace, Grid3X3, LayoutDashboard, Database, Menu } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
   const { activeTab, setActiveTab } = useApp();
@@ -107,8 +107,16 @@ const MainLayout: React.FC = () => {
         </div>
       </footer>
 
-      {/* Mobile Quick Action Dock (Specifically for Android Phone / APK) */}
+      {/* Mobile Quick Action Dock (Specifically for ~6-inch Android Phone / APK) */}
       <div className="mobile-action-dock no-print">
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('open-app-drawer'))}
+          className="dock-btn"
+          aria-label="Menu Lengkap"
+        >
+          <Menu size={20} />
+          <span>Menu</span>
+        </button>
         <button
           onClick={() => setActiveTab('scanner')}
           className={`dock-btn ${activeTab === 'scanner' ? 'active-emerald' : ''}`}
@@ -121,14 +129,14 @@ const MainLayout: React.FC = () => {
           className={`dock-btn ${activeTab === 'rekap' ? 'active-blue' : ''}`}
         >
           <Grid3X3 size={20} />
-          <span>Rekap Matriks</span>
+          <span>Rekap</span>
         </button>
         <button
           onClick={() => setActiveTab('dashboard')}
           className={`dock-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
         >
           <LayoutDashboard size={20} />
-          <span>Dashboard</span>
+          <span>Beranda</span>
         </button>
         <button
           onClick={() => setActiveTab('settings')}

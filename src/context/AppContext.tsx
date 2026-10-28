@@ -6,6 +6,7 @@ import type {
   StudentItem,
   AttendanceItem,
   AttendanceDetail,
+  DailyAttendanceItem,
 } from '../types';
 import { storageService } from '../services/storage';
 import { supabaseService } from '../services/supabase';
@@ -16,6 +17,7 @@ interface AppContextType {
   periods: PeriodItem[];
   students: StudentItem[];
   attendances: AttendanceItem[];
+  dailyAttendances: DailyAttendanceItem[];
   detailedAttendances: AttendanceDetail[];
   isLoading: boolean;
   isSupabaseConfigured: boolean;
@@ -71,6 +73,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [periods, setPeriods] = useState<PeriodItem[]>([]);
   const [students, setStudents] = useState<StudentItem[]>([]);
   const [attendances, setAttendances] = useState<AttendanceItem[]>([]);
+  const [dailyAttendances, setDailyAttendances] = useState<DailyAttendanceItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isSupabaseConfigured, setIsSupabaseConfigured] = useState<boolean>(supabaseService.isConfigured());
@@ -83,6 +86,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPeriods(storageService.getPeriods());
     setStudents(storageService.getStudents());
     setAttendances(storageService.getAttendances());
+    setDailyAttendances(storageService.getDailyAttendances());
     setIsSupabaseConfigured(supabaseService.isConfigured());
   }, []);
 
@@ -93,13 +97,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // If Supabase is connected, attempt background pull to ensure fresh sync
     if (supabaseService.isConfigured()) {
       try {
-        const [cloudClasses, cloudTeachers, cloudPeriods, cloudStudents, cloudAttendances] =
+        const [cloudClasses, cloudTeachers, cloudPeriods, cloudStudents, cloudAttendances, cloudDaily] =
           await Promise.all([
             supabaseService.fetchClasses(),
             supabaseService.fetchTeachers(),
             supabaseService.fetchPeriods(),
             supabaseService.fetchStudents(),
             supabaseService.fetchAttendances(),
+            supabaseService.fetchDailyAttendances(),
           ]);
 
         if (cloudClasses) {
@@ -121,6 +126,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (cloudAttendances) {
           setAttendances(cloudAttendances);
           storageService.saveAttendances(cloudAttendances);
+        }
+        if (cloudDaily && cloudDaily.length > 0) {
+          setDailyAttendances(cloudDaily);
+          storageService.saveDailyAttendances(cloudDaily);
         }
         setIsOnline(true);
       } catch (err) {
@@ -367,6 +376,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
+  // Helper to sync Daily Attendance Matrix row (| nama siswa | jam ke 1 | ... | jam N |)
+  const syncDailyAttendanceRow = (
+    studentId: string,
+    date: string,
+    currentAttendances: AttendanceItem[]
+  ) => {
+    const student = students.find((s) => s.id === studentId);
+    if (!student) return;
+    const cls = classes.find((c) => c.id === student.class_id);
+    const className = cls?.name || 'Kelas';
+
+    const studentAttsOnDate = currentAttendances.filter(
+      (a) => a.student_id === studentId && a.date === date
+    );
+
+    const dailyRow = storageService.computeDailyRow(
+      student,
+      className,
+      date,
+      studentAttsOnDate
+    );
+
+    setDailyAttendances((prev) => {
+      const idx = prev.findIndex((d) => d.id === dailyRow.id);
+      let nextDaily: DailyAttendanceItem[];
+      if (idx >= 0) {
+        nextDaily = [...prev];
+        nextDaily[idx] = dailyRow;
+      } else {
+        nextDaily = [dailyRow, ...prev];
+      }
+      storageService.saveDailyAttendances(nextDaily);
+      return nextDaily;
+    });
+
+    if (supabaseService.isConfigured()) {
+      supabaseService.upsertDailyAttendance(dailyRow).catch(console.error);
+    }
+  };
+
   // ==================== ATTENDANCE CRUD ====================
   const saveAttendanceRecord = async (
     record: Omit<AttendanceItem, 'id' | 'created_at'>
@@ -413,6 +462,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
+    // Always update database daily matrix row: | nama siswa | jam ke 1 | jam ke 2 | ... | jam N |
+    syncDailyAttendanceRow(record.student_id, record.date, updated);
+
     return finalId;
   };
 
@@ -425,19 +477,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     storageService.saveAttendances(updated);
 
     const changedItem = updated.find((a) => a.id === id);
-    if (changedItem && supabaseService.isConfigured()) {
-      supabaseService.upsertAttendance(changedItem).catch(console.error);
+    if (changedItem) {
+      if (supabaseService.isConfigured()) {
+        supabaseService.upsertAttendance(changedItem).catch(console.error);
+      }
+      syncDailyAttendanceRow(changedItem.student_id, changedItem.date, updated);
     }
     return true;
   };
 
   const deleteAttendanceRecord = async (id: string): Promise<boolean> => {
+    const target = attendances.find((a) => a.id === id);
     const updated = attendances.filter((a) => a.id !== id);
     setAttendances(updated);
     storageService.saveAttendances(updated);
 
     if (supabaseService.isConfigured()) {
       supabaseService.deleteAttendance(id).catch(console.error);
+    }
+
+    if (target) {
+      syncDailyAttendanceRow(target.student_id, target.date, updated);
     }
     return true;
   };
@@ -473,6 +533,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       for (const a of attendances) {
         await supabaseService.upsertAttendance(a);
       }
+      // Push daily attendances matrix (| nama siswa | jam ke 1 | ... | jam N |)
+      for (const d of dailyAttendances) {
+        await supabaseService.upsertDailyAttendance(d);
+      }
 
       await refreshData();
       return { success: true, message: 'Sinkronisasi berhasil! Semua data tersimpan di Supabase.' };
@@ -495,6 +559,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         periods,
         students,
         attendances,
+        dailyAttendances,
         detailedAttendances,
         isLoading,
         isSupabaseConfigured,

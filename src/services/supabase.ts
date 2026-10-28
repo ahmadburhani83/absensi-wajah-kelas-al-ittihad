@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { ClassItem, TeacherItem, PeriodItem, StudentItem, AttendanceItem } from '../types';
+import type { ClassItem, TeacherItem, PeriodItem, StudentItem, AttendanceItem, DailyAttendanceItem } from '../types';
 
 const STORAGE_KEY_SUPABASE = 'app_presensi_supabase_credentials_v1';
 
@@ -250,6 +250,58 @@ class SupabaseService {
     if (!client) return false;
     const { error } = await client.from('attendances').delete().eq('id', id);
     return !error;
+  }
+
+  // Daily Attendance Matrix (| nama siswa | jam ke 1 | jam ke 2 | ... | jam N |)
+  async fetchDailyAttendances(): Promise<DailyAttendanceItem[] | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    try {
+      const { data, error } = await client
+        .from('daily_attendances')
+        .select('*')
+        .order('date', { ascending: false });
+      if (error) {
+        console.warn('Supabase fetchDailyAttendances error (mungkin tabel baru):', error.message);
+        return null;
+      }
+      return data as DailyAttendanceItem[];
+    } catch (err) {
+      console.warn('Gagal membaca daily_attendances:', err);
+      return null;
+    }
+  }
+
+  async upsertDailyAttendance(item: DailyAttendanceItem): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    try {
+      const { error } = await client.from('daily_attendances').upsert(item);
+      if (error) {
+        console.warn('Supabase upsertDailyAttendance error:', error.message);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.warn('Gagal upsert daily_attendances:', err);
+      return false;
+    }
+  }
+
+  async upsertDailyAttendancesBatch(items: DailyAttendanceItem[]): Promise<boolean> {
+    const client = this.getClient();
+    if (!client || items.length === 0) return false;
+    try {
+      const { error } = await client.from('daily_attendances').upsert(items);
+      if (error) {
+        console.warn('Supabase upsertDailyAttendancesBatch error:', error.message);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.warn('Gagal batch upsert daily_attendances:', err);
+      return false;
+    }
   }
 }
 

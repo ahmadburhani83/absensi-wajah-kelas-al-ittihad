@@ -604,7 +604,7 @@ export const RekapView: React.FC = () => {
                 <tr>
                   <th style={{ width: '38px', textAlign: 'center' }}>No</th>
                   <th style={{ minWidth: '85px' }}>NIS</th>
-                  <th style={{ minWidth: '180px' }}>Nama Siswa</th>
+                  <th className="sticky-col-th" style={{ minWidth: '160px', left: 0 }}>Nama Siswa</th>
                   <th style={{ width: '40px', textAlign: 'center' }}>L/P</th>
 
                   {/* Dynamic Period Columns: Jam 1, Jam 2, Jam 3, ..., Jam N */}
@@ -655,7 +655,9 @@ export const RekapView: React.FC = () => {
                         <td style={{ fontSize: '0.8125rem', color: 'var(--text-dim)' }}>
                           {student.nis}
                         </td>
-                        <td style={{ fontWeight: 600 }}>{student.name}</td>
+                        <td className="sticky-col-student" style={{ fontWeight: 600, left: 0 }}>
+                          {student.name}
+                        </td>
                         <td style={{ textAlign: 'center', fontSize: '0.8125rem' }}>
                           {student.gender}
                         </td>

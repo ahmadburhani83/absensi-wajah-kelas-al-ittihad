@@ -392,7 +392,7 @@ h1, h2, h3, h4, .font-display {
     color: #000000 !important;
     background-image: none !important;
   }
-  .no-print, header, nav, .btn, .modal-backdrop, .sidebar {
+  .no-print, header, nav, .btn, .modal-backdrop, .sidebar, .drawer-overlay, .mobile-action-dock {
     display: none !important;
   }
   .print-only {
@@ -414,23 +414,430 @@ h1, h2, h3, h4, .font-display {
   }
 }
 
-/* Mobile Teacher Action Dock specifically for Android Phone screens */
+/* =========================================================
+   TOP NAVBAR & HAMBURGER SYSTEM (Android 6-inch Optimized)
+   ========================================================= */
+.app-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  background: rgba(11, 16, 28, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  padding: 8px 16px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+}
+
+.navbar-container {
+  max-width: 1500px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Hamburger button in the top-left corner */
+.hamburger-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.hamburger-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: scale(1.04);
+}
+
+.hamburger-btn:active {
+  transform: scale(0.96);
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.brand-logo-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
+  flex-shrink: 0;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.brand-accent {
+  color: #10b981;
+}
+
+.brand-subtitle {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.status-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+}
+
+/* =========================================================
+   SLIDE-IN NAVIGATION DRAWER (HAMBURGER SHEET)
+   ========================================================= */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.drawer-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 86%;
+  max-width: 350px;
+  background: #0c1222;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 12px 0 40px rgba(0, 0, 0, 0.85);
+  animation: slideInLeft 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.drawer-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.drawer-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.drawer-subtitle {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.drawer-close-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.drawer-close-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.drawer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.drawer-section-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  padding: 0 8px;
+}
+
+.drawer-section-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.drawer-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid transparent;
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.drawer-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.drawer-item.active {
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.drawer-item-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.drawer-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.drawer-item-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.drawer-item-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.drawer-item-desc {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.drawer-item-arrow {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.drawer-footer {
+  padding: 12px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 14, 26, 0.8);
+}
+
+.drawer-footer-card {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.badge-pill {
+  padding: 2px 7px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  border-radius: 9999px;
+  text-transform: uppercase;
+}
+
+.badge-emerald {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.badge-blue {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+/* =========================================================
+   STICKY STUDENT COLUMN FOR MATRIX REKAP ON MOBILE
+   ========================================================= */
+.sticky-col-student {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: #0d1424 !important;
+  box-shadow: 3px 0 8px rgba(0, 0, 0, 0.45);
+}
+
+.sticky-col-th {
+  position: sticky;
+  left: 0;
+  z-index: 6;
+  background: #111a30 !important;
+  box-shadow: 3px 0 8px rgba(0, 0, 0, 0.45);
+}
+
+/* =========================================================
+   MOBILE RESPONSIVE & LIGHTWEIGHT STYLING (~6 INCH SCREEN)
+   ========================================================= */
 .mobile-action-dock {
   display: none;
 }
 
 @media (max-width: 768px) {
+  :root {
+    --radius-lg: 12px;
+    --radius-md: 10px;
+  }
+
+  /* Lighter GPU workload on mobile */
+  .glass-panel {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    background: rgba(14, 20, 33, 0.95);
+  }
+
+  .glass-card {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    background: rgba(18, 26, 44, 0.9);
+  }
+
+  body {
+    font-size: 13.5px;
+    padding-bottom: 74px; /* Space for fixed bottom dock */
+  }
+
+  h1 {
+    font-size: 1.3rem !important;
+  }
+  h2 {
+    font-size: 1.15rem !important;
+  }
+  h3 {
+    font-size: 1.05rem !important;
+  }
+
+  /* Form inputs optimized for finger taps without mobile zoom */
+  .form-input, .form-select {
+    font-size: 14px;
+    padding: 10px 12px;
+    min-height: 42px;
+  }
+
+  .btn {
+    min-height: 40px;
+    padding: 8px 14px;
+  }
+
+  /* Mobile Teacher Action Dock */
   .mobile-action-dock {
     display: flex;
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    background: rgba(11, 15, 25, 0.95);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: rgba(11, 15, 25, 0.97);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border-top: 1px solid var(--border-color);
-    padding: 8px 12px;
+    padding: 6px 8px;
     justify-content: space-around;
     align-items: center;
     z-index: 99;
@@ -441,16 +848,18 @@ h1, h2, h3, h4, .font-display {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     background: transparent;
     border: none;
     color: var(--text-muted);
-    font-size: 0.6875rem;
+    font-size: 0.65rem;
     font-weight: 600;
     cursor: pointer;
-    padding: 6px 12px;
+    padding: 6px 10px;
     border-radius: 8px;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
+    flex: 1;
+    max-width: 72px;
   }
 
   .dock-btn.active-emerald {
@@ -467,8 +876,21 @@ h1, h2, h3, h4, .font-display {
     color: #fff;
     background: rgba(255, 255, 255, 0.1);
   }
+}
 
-  body {
-    padding-bottom: 74px; /* Space for fixed bottom dock */
+@media (max-width: 480px) {
+  /* Extra compact for 6-inch phones (~360px - 412px viewport) */
+  .hide-on-mobile-sm {
+    display: none !important;
+  }
+
+  .app-table th, .app-table td {
+    padding: 10px 8px;
+  }
+}
+
+@media (max-width: 380px) {
+  .hide-on-mobile-xs {
+    display: none !important;
   }
 }

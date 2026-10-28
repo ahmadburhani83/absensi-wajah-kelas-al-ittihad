@@ -73,6 +73,37 @@ export interface AttendanceDetail extends AttendanceItem {
   period_name?: string;
 }
 
+// Daily attendance matrix format stored in database and state:
+// | nama siswa | date | class_name | jam_1 | jam_2 | ... | jam_12 | total_hadir | ...
+export interface DailyAttendanceItem {
+  id: string; // `${date}_${student_id}`
+  date: string; // YYYY-MM-DD
+  student_id: string;
+  student_name: string;
+  student_nis?: string;
+  class_id: string;
+  class_name: string;
+  jam_1?: AttendanceStatus | '-' | string;
+  jam_2?: AttendanceStatus | '-' | string;
+  jam_3?: AttendanceStatus | '-' | string;
+  jam_4?: AttendanceStatus | '-' | string;
+  jam_5?: AttendanceStatus | '-' | string;
+  jam_6?: AttendanceStatus | '-' | string;
+  jam_7?: AttendanceStatus | '-' | string;
+  jam_8?: AttendanceStatus | '-' | string;
+  jam_9?: AttendanceStatus | '-' | string;
+  jam_10?: AttendanceStatus | '-' | string;
+  jam_11?: AttendanceStatus | '-' | string;
+  jam_12?: AttendanceStatus | '-' | string;
+  total_hadir: number;
+  total_izin: number;
+  total_sakit: number;
+  total_alpa: number;
+  persentase: number;
+  last_scan_time?: string;
+  updated_at?: string;
+}
+
 export interface FaceDetectionBox {
   x: number;
   y: number;

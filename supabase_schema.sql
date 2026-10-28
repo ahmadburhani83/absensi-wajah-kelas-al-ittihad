@@ -87,6 +87,42 @@ CREATE TABLE IF NOT EXISTS public.attendances (
 CREATE INDEX IF NOT EXISTS idx_attendances_date_class ON public.attendances(date, class_id);
 CREATE INDEX IF NOT EXISTS idx_attendances_student_id ON public.attendances(student_id);
 
+-- 6. TABEL REKAP PRESENSI HARIAN (DAILY ATTENDANCES MATRIX)
+-- Format: | nama siswa | tanggal | kelas | jam ke 1 | jam ke 2 | ... | jam N |
+-- Memudahkan pembacaan langsung di Supabase Table Editor maupun ekspor data.
+CREATE TABLE IF NOT EXISTS public.daily_attendances (
+    id TEXT PRIMARY KEY,                     -- Kombinasi format: YYYY-MM-DD_<student_id>
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+    student_id UUID NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+    student_name VARCHAR(100) NOT NULL,
+    student_nis VARCHAR(30),
+    class_id UUID NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+    class_name VARCHAR(50) NOT NULL,
+    jam_1 VARCHAR(20) DEFAULT '-',
+    jam_2 VARCHAR(20) DEFAULT '-',
+    jam_3 VARCHAR(20) DEFAULT '-',
+    jam_4 VARCHAR(20) DEFAULT '-',
+    jam_5 VARCHAR(20) DEFAULT '-',
+    jam_6 VARCHAR(20) DEFAULT '-',
+    jam_7 VARCHAR(20) DEFAULT '-',
+    jam_8 VARCHAR(20) DEFAULT '-',
+    jam_9 VARCHAR(20) DEFAULT '-',
+    jam_10 VARCHAR(20) DEFAULT '-',
+    jam_11 VARCHAR(20) DEFAULT '-',
+    jam_12 VARCHAR(20) DEFAULT '-',
+    total_hadir INT DEFAULT 0,
+    total_izin INT DEFAULT 0,
+    total_sakit INT DEFAULT 0,
+    total_alpa INT DEFAULT 0,
+    persentase NUMERIC(5, 2) DEFAULT 0,
+    last_scan_time TIME,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT unique_daily_student_date UNIQUE (student_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_attendances_date_class ON public.daily_attendances(date, class_id);
+CREATE INDEX IF NOT EXISTS idx_daily_attendances_student ON public.daily_attendances(student_id);
+
 -- =========================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- Untuk kemudahan deployment awal di Vercel, kita aktifkan RLS dan izinkan
@@ -98,6 +134,9 @@ ALTER TABLE public.teachers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.periods ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendances ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.daily_attendances ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public all daily_attendances" ON public.daily_attendances FOR ALL USING (true) WITH CHECK (true);
 
 CREATE POLICY "Allow public read classes" ON public.classes FOR SELECT USING (true);
 CREATE POLICY "Allow public insert classes" ON public.classes FOR INSERT WITH CHECK (true);

@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import {
+  Menu,
+  X,
   ScanFace,
   LayoutDashboard,
   FileSpreadsheet,
@@ -11,125 +13,325 @@ import {
   Database,
   CloudCheck,
   CloudOff,
+  ChevronRight,
+  ShieldCheck,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+
+interface NavItem {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  desc: string;
+  color?: string;
+  badge?: string;
+  bgActive?: string;
+  borderColor?: string;
+}
+
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
 
 export const Navbar: React.FC = () => {
   const { activeTab, setActiveTab, isSupabaseConfigured, isOnline } = useApp();
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'scanner', label: 'Scan Absen Kelas', icon: ScanFace, highlight: true },
-    { id: 'rekap', label: 'Rekap Absensi', icon: FileSpreadsheet },
-    { id: 'students', label: 'Data Siswa', icon: Users },
-    { id: 'classes', label: 'Data Kelas', icon: GraduationCap },
-    { id: 'teachers', label: 'Data Guru', icon: UserCheck },
-    { id: 'periods', label: 'Jam Pelajaran', icon: Clock },
-    { id: 'settings', label: 'Supabase & Cloud', icon: Database },
+  // Close drawer on ESC key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsDrawerOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Listen to open-drawer events (e.g. from bottom action dock)
+  useEffect(() => {
+    const handleOpenDrawer = () => setIsDrawerOpen(true);
+    window.addEventListener('open-app-drawer', handleOpenDrawer);
+    return () => window.removeEventListener('open-app-drawer', handleOpenDrawer);
+  }, []);
+
+  const handleSelectTab = (tabId: string) => {
+    setActiveTab(tabId);
+    setIsDrawerOpen(false);
+  };
+
+  const navSections: NavSection[] = [
+    {
+      title: 'Aktivitas Kelas',
+      items: [
+        {
+          id: 'scanner',
+          label: 'Scan Absen Kelas',
+          icon: ScanFace,
+          desc: 'Presensi wajah siswa otomatis',
+          badge: 'Utama',
+          color: '#10b981',
+          bgActive: 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(16, 185, 129, 0.1) 100%)',
+          borderColor: 'rgba(16, 185, 129, 0.4)',
+        },
+        {
+          id: 'rekap',
+          label: 'Rekap Absensi',
+          icon: FileSpreadsheet,
+          desc: 'Matriks Jam 1 s/d Jam N & Export',
+          badge: 'Matriks',
+          color: '#3b82f6',
+          bgActive: 'linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(59, 130, 246, 0.1) 100%)',
+          borderColor: 'rgba(59, 130, 246, 0.4)',
+        },
+      ],
+    },
+    {
+      title: 'Master Data',
+      items: [
+        {
+          id: 'students',
+          label: 'Data Siswa',
+          icon: Users,
+          desc: 'Daftar siswa & pendaftaran wajah',
+          color: '#8b5cf6',
+        },
+        {
+          id: 'classes',
+          label: 'Data Kelas',
+          icon: GraduationCap,
+          desc: 'Kelola kelas, jurusan, wali kelas',
+          color: '#06b6d4',
+        },
+        {
+          id: 'teachers',
+          label: 'Data Guru',
+          icon: UserCheck,
+          desc: 'Daftar guru pengajar & mapel',
+          color: '#f59e0b',
+        },
+        {
+          id: 'periods',
+          label: 'Jam Pelajaran',
+          icon: Clock,
+          desc: 'Atur jam 1-2, 3-4, 5-6, 8-9',
+          color: '#ec4899',
+        },
+      ],
+    },
+    {
+      title: 'Sistem & Cloud',
+      items: [
+        {
+          id: 'dashboard',
+          label: 'Dashboard Statistik',
+          icon: LayoutDashboard,
+          desc: 'Ringkasan kehadiran & grafik',
+          color: '#64748b',
+        },
+        {
+          id: 'settings',
+          label: 'Supabase & Cloud',
+          icon: Database,
+          desc: 'Database online & sinkronisasi',
+          color: '#10b981',
+        },
+      ],
+    },
   ];
 
   return (
-    <header className="glass-panel no-print" style={{ margin: '16px 20px 0 20px', padding: '12px 24px', borderRadius: 'var(--radius-lg)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
-        {/* Logo & Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => setActiveTab('dashboard')}>
-          <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, #10b981 0%, #3b82f6 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 0 15px rgba(16, 185, 129, 0.4)',
-          }}>
-            <ScanFace size={24} color="#ffffff" />
+    <>
+      {/* Top Navbar Header */}
+      <header className="app-navbar no-print">
+        <div className="navbar-container">
+          {/* Top Left: Hamburger Button (☰) & Brand */}
+          <div className="navbar-left">
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className="hamburger-btn"
+              aria-label="Buka Menu Navigasi"
+              title="Menu Navigasi"
+            >
+              <Menu size={22} />
+            </button>
+
+            <div
+              className="navbar-brand"
+              onClick={() => setActiveTab('dashboard')}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="brand-logo-badge">
+                <ScanFace size={20} color="#ffffff" />
+              </div>
+              <div className="brand-text">
+                <div className="brand-title">
+                  <span>Presensi</span>
+                  <span className="brand-accent">Pintar</span>
+                </div>
+                <div className="brand-subtitle">Al-Ittihad • Wajah Siswa</div>
+              </div>
+            </div>
           </div>
-          <div>
-            <h1 style={{ fontSize: '1.25rem', lineHeight: '1.2', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>Presensi</span>
-              <span style={{ color: '#10b981' }}>Pintar</span>
-            </h1>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Absensi Wajah Kelas Siswa • Biometrik Cerdas
-            </p>
+
+          {/* Top Right: Status Pill & Quick Action */}
+          <div className="navbar-right">
+            {/* Quick Scan Action */}
+            <button
+              onClick={() => setActiveTab('scanner')}
+              className={`btn btn-sm ${activeTab === 'scanner' ? 'btn-emerald' : 'btn-secondary'}`}
+              style={{ padding: '6px 12px', fontSize: '0.8125rem' }}
+            >
+              <ScanFace size={16} />
+              <span className="hide-on-mobile-xs">Scan</span>
+            </button>
+
+            {/* Quick Rekap Action */}
+            <button
+              onClick={() => setActiveTab('rekap')}
+              className={`btn btn-sm ${activeTab === 'rekap' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ padding: '6px 12px', fontSize: '0.8125rem' }}
+            >
+              <FileSpreadsheet size={16} />
+              <span className="hide-on-mobile-xs">Rekap</span>
+            </button>
+
+            {/* Supabase Status Pill */}
+            <div
+              onClick={() => setActiveTab('settings')}
+              className="status-pill"
+              title={
+                isSupabaseConfigured
+                  ? (isOnline ? 'Supabase Terhubung' : 'Offline / Mode Cache')
+                  : 'Mode Demo Lokal (Klik untuk koneksi Supabase)'
+              }
+            >
+              {isSupabaseConfigured ? (
+                <>
+                  {isOnline ? (
+                    <CloudCheck size={14} color="#34d399" />
+                  ) : (
+                    <CloudOff size={14} color="#fbbf24" />
+                  )}
+                  <span className="hide-on-mobile-sm">
+                    {isOnline ? 'Cloud' : 'Offline'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Database size={14} color="#94a3b8" />
+                  <span className="hide-on-mobile-sm">Lokal</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* Navigation Tabs */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
+      {/* Slide-In Navigation Drawer (Hamburger Menu Sheet) */}
+      {isDrawerOpen && (
+        <div className="drawer-overlay" onClick={() => setIsDrawerOpen(false)}>
+          <aside
+            className="drawer-panel"
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Panel Navigasi"
+          >
+            {/* Drawer Header */}
+            <div className="drawer-header">
+              <div className="drawer-brand">
+                <div className="brand-logo-badge">
+                  <ScanFace size={22} color="#ffffff" />
+                </div>
+                <div>
+                  <h2 className="drawer-title">
+                    <span>Presensi</span>
+                    <span className="brand-accent"> Pintar</span>
+                  </h2>
+                  <p className="drawer-subtitle">SMK / MA Al-Ittihad</p>
+                </div>
+              </div>
               <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`btn ${isActive ? (item.highlight ? 'btn-emerald' : 'btn-primary') : 'btn-secondary'}`}
-                style={{
-                  padding: '8px 14px',
-                  fontSize: '0.8125rem',
-                  borderRadius: '10px',
-                  ...(item.highlight && !isActive ? {
-                    borderColor: 'rgba(16, 185, 129, 0.4)',
-                    color: '#34d399',
-                    background: 'rgba(16, 185, 129, 0.1)',
-                  } : {}),
-                }}
+                onClick={() => setIsDrawerOpen(false)}
+                className="drawer-close-btn"
+                aria-label="Tutup Menu"
               >
-                <Icon size={16} />
-                <span>{item.label}</span>
+                <X size={20} />
               </button>
-            );
-          })}
-        </nav>
+            </div>
 
-        {/* Database Status Indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {isSupabaseConfigured ? (
-            <div
-              onClick={() => setActiveTab('settings')}
-              title={isOnline ? 'Supabase Database Terhubung' : 'Offline / Menggunakan Cache Lokal'}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '9999px',
-                background: isOnline ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                border: `1px solid ${isOnline ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
-                color: isOnline ? '#34d399' : '#fbbf24',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              {isOnline ? <CloudCheck size={14} /> : <CloudOff size={14} />}
-              <span>{isOnline ? 'Supabase Sync' : 'Local Cache'}</span>
+            {/* Drawer Body - Sections & Menu Items */}
+            <div className="drawer-body">
+              {navSections.map((sec) => (
+                <div key={sec.title} className="drawer-section">
+                  <div className="drawer-section-title">{sec.title}</div>
+                  <div className="drawer-section-list">
+                    {sec.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeTab === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => handleSelectTab(item.id)}
+                          className={`drawer-item ${isActive ? 'active' : ''}`}
+                          style={{
+                            background: isActive
+                              ? (item.bgActive || 'rgba(59, 130, 246, 0.18)')
+                              : undefined,
+                            borderColor: isActive
+                              ? (item.borderColor || 'rgba(59, 130, 246, 0.4)')
+                              : 'transparent',
+                          }}
+                        >
+                          <div
+                            className="drawer-item-icon"
+                            style={{
+                              color: item.color || '#3b82f6',
+                              background: isActive
+                                ? 'rgba(255, 255, 255, 0.1)'
+                                : 'rgba(255, 255, 255, 0.04)',
+                            }}
+                          >
+                            <Icon size={18} />
+                          </div>
+                          <div className="drawer-item-content">
+                            <div className="drawer-item-label-row">
+                              <span className="drawer-item-label">{item.label}</span>
+                              {item.badge && (
+                                <span className={`badge-pill ${item.id === 'scanner' ? 'badge-emerald' : 'badge-blue'}`}>
+                                  {item.badge}
+                                </span>
+                              )}
+                            </div>
+                            <span className="drawer-item-desc">{item.desc}</span>
+                          </div>
+                          <ChevronRight
+                            size={16}
+                            className="drawer-item-arrow"
+                            style={{ opacity: isActive ? 1 : 0.4 }}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
-          ) : (
-            <div
-              onClick={() => setActiveTab('settings')}
-              title="Klik untuk konfigurasi Supabase Database"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '9999px',
-                background: 'rgba(148, 163, 184, 0.1)',
-                border: '1px solid rgba(148, 163, 184, 0.25)',
-                color: 'var(--text-muted)',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              <Database size={14} />
-              <span>Mode Lokal (Demo)</span>
+
+            {/* Drawer Footer */}
+            <div className="drawer-footer">
+              <div className="drawer-footer-card">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShieldCheck size={16} color="#10b981" />
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Privasi Terjamin</span>
+                </div>
+                <p style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Hanya 128-vektor matematika wajah yang diproses. Foto tidak disimpan ke server.
+                </p>
+              </div>
             </div>
-          )}
+          </aside>
         </div>
-      </div>
-    </header>
+      )}
+    </>
   );
 };
