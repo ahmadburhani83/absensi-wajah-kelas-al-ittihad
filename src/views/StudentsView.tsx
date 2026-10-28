@@ -15,8 +15,23 @@ import {
   ShieldCheck,
   RefreshCw,
   X,
+  Upload,
+  Download,
+  FileCheck,
 } from 'lucide-react';
 import type { StudentItem, Gender } from '../types';
+
+interface ParsedStudentRow {
+  nis: string;
+  nisn?: string;
+  name: string;
+  className: string;
+  classId: string;
+  gender: Gender;
+  isDuplicate: boolean;
+  isValid: boolean;
+  errorReason?: string;
+}
 
 export const StudentsView: React.FC = () => {
   const {
@@ -27,6 +42,7 @@ export const StudentsView: React.FC = () => {
     deleteStudent,
     enrollStudentFace,
     clearStudentFace,
+    importStudentsBatch,
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -36,6 +52,13 @@ export const StudentsView: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [editingStudent, setEditingStudent] = useState<StudentItem | null>(null);
   const [enrollingStudent, setEnrollingStudent] = useState<StudentItem | null>(null);
+
+  // Upload Student State
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
+  const [parsedRows, setParsedRows] = useState<ParsedStudentRow[]>([]);
+  const [defaultImportClassId, setDefaultImportClassId] = useState<string>(classes[0]?.id || '');
+  const [rawUploadedText, setRawUploadedText] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Form Student State
   const [formNis, setFormNis] = useState<string>('');
@@ -129,6 +152,196 @@ export const StudentsView: React.FC = () => {
     if (confirm(`Apakah Anda yakin ingin menghapus data siswa ${name}? Riwayat presensi terkait juga akan dihapus.`)) {
       await deleteStudent(id);
     }
+  };
+
+  // ==================== TEMPLATE & UPLOAD SISWA ====================
+  const handleDownloadTemplate = () => {
+    const sampleClasses = classes.map((c) => c.name).join(', ') || 'X-RPL-1, X-TKJ-1';
+    const csvContent =
+`# TEMPLATE IMPORT DATA SISWA - AL-ITTIHAD
+# PANDUAN PENGISIAN:
+# 1. Baris diawali tanda '#' adalah petunjuk dan otomatis diabaikan saat import.
+# 2. Kolom: NIS, NISN, Nama Siswa, Kelas, Jenis Kelamin (L/P)
+# 3. Kelas yang tersedia di sistem saat ini: ${sampleClasses}
+# 4. Jenis Kelamin isi 'L' (Laki-laki) atau 'P' (Perempuan).
+NIS,NISN,Nama Siswa,Kelas,Jenis Kelamin
+2026001,0081234561,Ahmad Fauzi,${classes[0]?.name || 'X-RPL-1'},L
+2026002,0081234562,Siti Nurhaliza,${classes[0]?.name || 'X-RPL-1'},P
+2026003,0081234563,Budi Santoso,${classes[1]?.name || classes[0]?.name || 'X-TKJ-1'},L
+2026004,0081234564,Dewi Lestari,${classes[1]?.name || classes[0]?.name || 'X-TKJ-1'},P
+`;
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'template_import_siswa_al_ittihad.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const parseCSVContent = (content: string, defaultClassId: string): ParsedStudentRow[] => {
+    const lines = content
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0 && !l.startsWith('#'));
+
+    if (lines.length === 0) return [];
+
+    const firstLine = lines[0];
+    const separator = firstLine.includes(';') ? ';' : ',';
+
+    const parseLine = (line: string): string[] => {
+      const values: string[] = [];
+      let inQuote = false;
+      let current = '';
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"' || char === "'") {
+          inQuote = !inQuote;
+        } else if (char === separator && !inQuote) {
+          values.push(current.trim().replace(/^["']|["']$/g, ''));
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      values.push(current.trim().replace(/^["']|["']$/g, ''));
+      return values;
+    };
+
+    const firstRowValues = parseLine(lines[0]).map((v) => v.toLowerCase());
+    let startIndex = 0;
+    let colNis = 0;
+    let colNisn = 1;
+    let colName = 2;
+    let colClass = 3;
+    let colGender = 4;
+
+    const hasHeader = firstRowValues.some(
+      (v) => v.includes('nis') || v.includes('nama') || v.includes('siswa') || v.includes('kelas')
+    );
+
+    if (hasHeader) {
+      startIndex = 1;
+      firstRowValues.forEach((col, idx) => {
+        if (col === 'nis') colNis = idx;
+        else if (col.includes('nisn')) colNisn = idx;
+        else if (col.includes('nama')) colName = idx;
+        else if (col.includes('kelas') || col.includes('class')) colClass = idx;
+        else if (col.includes('kelamin') || col.includes('gender') || col === 'l/p') colGender = idx;
+      });
+    }
+
+    const parsed: ParsedStudentRow[] = [];
+    const seenNisInBatch = new Set<string>();
+
+    for (let i = startIndex; i < lines.length; i++) {
+      const parts = parseLine(lines[i]);
+      if (parts.length === 0 || parts.every((p) => !p)) continue;
+
+      const nis = (parts[colNis] || '').trim();
+      const nisn = parts[colNisn]?.trim() || undefined;
+      const name = (parts[colName] || '').trim();
+      const rawClass = (parts[colClass] || '').trim();
+      const rawGender = (parts[colGender] || 'L').toUpperCase().trim();
+
+      let gender: Gender = 'L';
+      if (rawGender.startsWith('P') || rawGender.includes('PEREMPUAN') || rawGender.includes('FEMALE')) {
+        gender = 'P';
+      }
+
+      let matchedClass = classes.find(
+        (c) =>
+          c.name.toLowerCase() === rawClass.toLowerCase() ||
+          c.id.toLowerCase() === rawClass.toLowerCase()
+      );
+      if (!matchedClass && defaultClassId) {
+        matchedClass = classes.find((c) => c.id === defaultClassId);
+      }
+
+      const isValid = Boolean(nis && name && (matchedClass || defaultClassId));
+      let errorReason = '';
+      if (!nis) errorReason = 'NIS kosong';
+      else if (!name) errorReason = 'Nama kosong';
+      else if (!matchedClass && !defaultClassId) errorReason = 'Kelas tidak ditemukan';
+
+      const isExisting = students.some((s) => s.nis.trim().toLowerCase() === nis.toLowerCase());
+      const isDuplicateInBatch = seenNisInBatch.has(nis.toLowerCase());
+      const isDuplicate = isExisting || isDuplicateInBatch;
+
+      if (!isDuplicate && nis) {
+        seenNisInBatch.add(nis.toLowerCase());
+      }
+
+      parsed.push({
+        nis,
+        nisn,
+        name,
+        className: matchedClass?.name || rawClass || 'Kelas Default',
+        classId: matchedClass?.id || defaultClassId || classes[0]?.id || '',
+        gender,
+        isValid: isValid && !isDuplicate,
+        isDuplicate,
+        errorReason: isDuplicate ? (isExisting ? 'NIS sudah terdaftar' : 'NIS kembar di file') : errorReason,
+      });
+    }
+
+    return parsed;
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+      setRawUploadedText(text);
+      const defaultClass = defaultImportClassId || classes[0]?.id || '';
+      setDefaultImportClassId(defaultClass);
+      const results = parseCSVContent(text, defaultClass);
+      setParsedRows(results);
+      setIsUploadModalOpen(true);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleDefaultClassChange = (newClassId: string) => {
+    setDefaultImportClassId(newClassId);
+    if (rawUploadedText) {
+      const refreshed = parseCSVContent(rawUploadedText, newClassId);
+      setParsedRows(refreshed);
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    const validRows = parsedRows.filter((r) => r.isValid);
+    if (validRows.length === 0) {
+      alert('Tidak ada baris siswa valid untuk di-import.');
+      return;
+    }
+
+    const payload = validRows.map((r) => ({
+      nis: r.nis,
+      nisn: r.nisn,
+      name: r.name,
+      gender: r.gender,
+      class_id: r.classId,
+    }));
+
+    const result = await importStudentsBatch(payload);
+    audioFeedback.playSuccess();
+    setIsUploadModalOpen(false);
+    alert(
+      `Import selesai! Berhasil menambahkan ${result.addedCount} siswa baru.${
+        result.skippedCount > 0 ? ` (${result.skippedCount} siswa dilewati karena duplikat).` : ''
+      }`
+    );
   };
 
   // Camera Management for Enrollment
@@ -244,10 +457,40 @@ export const StudentsView: React.FC = () => {
           </p>
         </div>
 
-        <button onClick={handleOpenAdd} className="btn btn-emerald">
-          <Plus size={16} />
-          <span>Tambah Siswa Baru</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Download Template CSV */}
+          <button
+            onClick={handleDownloadTemplate}
+            className="btn btn-secondary"
+            title="Download Template Format CSV untuk Import Data Siswa"
+          >
+            <Download size={16} />
+            <span>Download Template</span>
+          </button>
+
+          {/* Upload Data Siswa */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="btn btn-primary"
+            title="Upload file CSV data siswa"
+          >
+            <Upload size={16} />
+            <span>Upload Data Siswa</span>
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".csv,.txt"
+            style={{ display: 'none' }}
+            onChange={handleFileSelect}
+          />
+
+          {/* Tambah Siswa Baru */}
+          <button onClick={handleOpenAdd} className="btn btn-emerald">
+            <Plus size={16} />
+            <span>Tambah Siswa</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
@@ -648,6 +891,163 @@ export const StudentsView: React.FC = () => {
                   <span>Simpan Biometrik</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Upload & Konfirmasi Import Siswa */}
+      {isUploadModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsUploadModalOpen(false)}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '850px', padding: '24px' }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '16px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <FileCheck size={22} color="#10b981" />
+                <h3 style={{ fontSize: '1.25rem', margin: 0 }}>Preview & Konfirmasi Import Siswa</h3>
+              </div>
+              <button
+                onClick={() => setIsUploadModalOpen(false)}
+                className="btn btn-secondary btn-icon"
+                style={{ width: '32px', height: '32px', borderRadius: '8px' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Statistics */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                gap: '12px',
+                marginBottom: '18px',
+              }}
+            >
+              <div className="glass-card" style={{ padding: '12px' }}>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                  TOTAL DATA TERBACA
+                </span>
+                <h4 style={{ fontSize: '1.35rem', marginTop: '2px' }}>{parsedRows.length}</h4>
+              </div>
+              <div className="glass-card" style={{ padding: '12px', borderLeft: '3px solid #10b981' }}>
+                <span style={{ fontSize: '0.6875rem', color: '#34d399', fontWeight: 600 }}>
+                  SIAP DI-IMPORT
+                </span>
+                <h4 style={{ fontSize: '1.35rem', marginTop: '2px', color: '#34d399' }}>
+                  {parsedRows.filter((r) => r.isValid).length}
+                </h4>
+              </div>
+              <div className="glass-card" style={{ padding: '12px', borderLeft: '3px solid #f43f5e' }}>
+                <span style={{ fontSize: '0.6875rem', color: '#fb7185', fontWeight: 600 }}>
+                  DUPLIKAT / DILEWATI
+                </span>
+                <h4 style={{ fontSize: '1.35rem', marginTop: '2px', color: '#fb7185' }}>
+                  {parsedRows.filter((r) => !r.isValid).length}
+                </h4>
+              </div>
+            </div>
+
+            {/* Default Class Fallback */}
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label className="form-label">
+                Kelas Default (Digunakan jika nama kelas di file tidak persis sama):
+              </label>
+              <select
+                className="form-select"
+                value={defaultImportClassId}
+                onChange={(e) => handleDefaultClassChange(e.target.value)}
+              >
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} - {c.major}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Preview Table */}
+            <div
+              className="table-container"
+              style={{ maxHeight: '320px', overflowY: 'auto', marginBottom: '20px' }}
+            >
+              <table className="app-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '40px', textAlign: 'center' }}>No</th>
+                    <th>NIS</th>
+                    <th>Nama Siswa</th>
+                    <th>Kelas</th>
+                    <th style={{ width: '45px', textAlign: 'center' }}>L/P</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parsedRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}
+                      >
+                        Tidak ada data siswa yang terbaca dari file.
+                      </td>
+                    </tr>
+                  ) : (
+                    parsedRows.map((row, idx) => (
+                      <tr key={idx} style={{ opacity: row.isValid ? 1 : 0.65 }}>
+                        <td style={{ textAlign: 'center' }}>{idx + 1}</td>
+                        <td style={{ fontWeight: 600 }}>{row.nis}</td>
+                        <td>{row.name}</td>
+                        <td>{row.className}</td>
+                        <td style={{ textAlign: 'center' }}>{row.gender}</td>
+                        <td>
+                          {row.isValid ? (
+                            <span className="badge badge-emerald">
+                              <CheckCircle2 size={12} /> Siap
+                            </span>
+                          ) : (
+                            <span className="badge badge-danger" title={row.errorReason}>
+                              <AlertCircle size={12} /> {row.errorReason || 'Tidak Valid'}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setIsUploadModalOpen(false)}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                className="btn btn-emerald"
+                disabled={parsedRows.filter((r) => r.isValid).length === 0}
+                onClick={handleConfirmImport}
+              >
+                <Upload size={16} />
+                <span>
+                  Konfirmasi & Import ({parsedRows.filter((r) => r.isValid).length} Siswa)
+                </span>
+              </button>
             </div>
           </div>
         </div>

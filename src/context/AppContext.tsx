@@ -46,6 +46,14 @@ interface AppContextType {
   deleteStudent: (id: string) => Promise<boolean>;
   enrollStudentFace: (id: string, descriptor: number[]) => Promise<boolean>;
   clearStudentFace: (id: string) => Promise<boolean>;
+  importStudentsBatch: (
+    newStudents: Omit<StudentItem, 'id' | 'is_enrolled'>[]
+  ) => Promise<{ addedCount: number; skippedCount: number }>;
+
+  // Theme Management
+  theme: 'dark' | 'light';
+  setTheme: (theme: 'dark' | 'light') => void;
+  toggleTheme: () => void;
 
   // CRUD Attendance
   saveAttendanceRecord: (record: Omit<AttendanceItem, 'id' | 'created_at'>) => Promise<string>;
@@ -78,6 +86,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isSupabaseConfigured, setIsSupabaseConfigured] = useState<boolean>(supabaseService.isConfigured());
   const [isOnline, setIsOnline] = useState<boolean>(true);
+
+  // Theme Management (Dark / Light)
+  const [theme, setThemeState] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('app_theme');
+    return saved === 'light' || saved === 'dark' ? saved : 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('app_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setThemeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
+
+  const setTheme = useCallback((t: 'dark' | 'light') => {
+    setThemeState(t);
+  }, []);
 
   // Initialize and load data
   const loadLocalData = useCallback(() => {
@@ -376,6 +403,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
+  const importStudentsBatch = async (
+    newStudentsData: Omit<StudentItem, 'id' | 'is_enrolled'>[]
+  ): Promise<{ addedCount: number; skippedCount: number }> => {
+    let addedCount = 0;
+    let skippedCount = 0;
+    const currentStudents = [...students];
+    const toInsertCloud: StudentItem[] = [];
+
+    for (const item of newStudentsData) {
+      if (
+        currentStudents.some(
+          (s) => s.nis.trim().toLowerCase() === item.nis.trim().toLowerCase()
+        )
+      ) {
+        skippedCount++;
+        continue;
+      }
+      const newStudent: StudentItem = {
+        ...item,
+        id: generateId(),
+        is_enrolled: false,
+        face_descriptor: null,
+        created_at: new Date().toISOString(),
+      };
+      currentStudents.push(newStudent);
+      toInsertCloud.push(newStudent);
+      addedCount++;
+    }
+
+    if (addedCount > 0) {
+      setStudents(currentStudents);
+      storageService.saveStudents(currentStudents);
+
+      if (supabaseService.isConfigured()) {
+        for (const st of toInsertCloud) {
+          supabaseService.upsertStudent(st).catch(console.error);
+        }
+      }
+    }
+
+    return { addedCount, skippedCount };
+  };
+
   // Helper to sync Daily Attendance Matrix row (| nama siswa | jam ke 1 | ... | jam N |)
   const syncDailyAttendanceRow = (
     studentId: string,
@@ -580,6 +650,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteStudent,
         enrollStudentFace,
         clearStudentFace,
+        importStudentsBatch,
+        theme,
+        setTheme,
+        toggleTheme,
         saveAttendanceRecord,
         updateAttendanceRecord,
         deleteAttendanceRecord,

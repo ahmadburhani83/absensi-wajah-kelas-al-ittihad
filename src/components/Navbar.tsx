@@ -15,6 +15,8 @@ import {
   CloudOff,
   ChevronRight,
   ShieldCheck,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -35,7 +37,7 @@ interface NavSection {
 }
 
 export const Navbar: React.FC = () => {
-  const { activeTab, setActiveTab, isSupabaseConfigured, isOnline } = useApp();
+  const { activeTab, setActiveTab, isSupabaseConfigured, isOnline, theme, toggleTheme } = useApp();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // Close drawer on ESC key
@@ -196,6 +198,21 @@ export const Navbar: React.FC = () => {
               <span className="hide-on-mobile-xs">Rekap</span>
             </button>
 
+            {/* Theme Toggle (Dark / Light) */}
+            <button
+              onClick={toggleTheme}
+              className="btn btn-secondary btn-icon"
+              title={theme === 'dark' ? 'Ganti ke Tema Terang' : 'Ganti ke Tema Gelap'}
+              aria-label="Ganti Tema"
+              style={{ width: '34px', height: '34px', borderRadius: '9px', padding: 0 }}
+            >
+              {theme === 'dark' ? (
+                <Sun size={16} color="#fbbf24" />
+              ) : (
+                <Moon size={16} color="#3b82f6" />
+              )}
+            </button>
+
             {/* Supabase Status Pill */}
             <div
               onClick={() => setActiveTab('settings')}
@@ -319,6 +336,32 @@ export const Navbar: React.FC = () => {
 
             {/* Drawer Footer */}
             <div className="drawer-footer">
+              {/* Quick Theme Switch Row in Drawer */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 10px',
+                  borderRadius: '10px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--border-color)',
+                  marginBottom: '10px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8125rem', fontWeight: 600 }}>
+                  {theme === 'dark' ? <Moon size={16} color="#60a5fa" /> : <Sun size={16} color="#f59e0b" />}
+                  <span>Mode {theme === 'dark' ? 'Gelap (Dark)' : 'Terang (Light)'}</span>
+                </div>
+                <button
+                  onClick={toggleTheme}
+                  className="btn btn-secondary btn-sm"
+                  style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px' }}
+                >
+                  Ubah ke {theme === 'dark' ? 'Terang' : 'Gelap'}
+                </button>
+              </div>
+
               <div className="drawer-footer-card">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <ShieldCheck size={16} color="#10b981" />

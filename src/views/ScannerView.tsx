@@ -14,6 +14,13 @@ import {
   ShieldCheck,
   RefreshCw,
   Edit3,
+  Calendar,
+  GraduationCap,
+  UserCheck,
+  Clock,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import type { AttendanceStatus, MatchResult } from '../types';
 
@@ -35,6 +42,14 @@ export const ScannerView: React.FC = () => {
   const [sessionDate, setSessionDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
+  const [isCamHudExpanded, setIsCamHudExpanded] = useState<boolean>(true);
+
+  // Sync state if initial arrays were empty on first render
+  useEffect(() => {
+    if (!selectedClassId && classes.length > 0) setSelectedClassId(classes[0].id);
+    if (!selectedTeacherId && teachers.length > 0) setSelectedTeacherId(teachers[0].id);
+    if (!selectedPeriodId && periods.length > 0) setSelectedPeriodId(periods[0].id);
+  }, [classes, teachers, periods, selectedClassId, selectedTeacherId, selectedPeriodId]);
 
   // Camera & Model State
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
@@ -337,80 +352,6 @@ export const ScannerView: React.FC = () => {
 
   return (
     <div style={{ padding: '24px 20px', maxWidth: '1440px', margin: '0 auto' }}>
-      {/* Session Header Bar */}
-      <div
-        className="glass-panel"
-        style={{
-          padding: '20px 24px',
-          marginBottom: '24px',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '16px',
-          alignItems: 'center',
-        }}
-      >
-        {/* Guru */}
-        <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label">Guru Pengajar</label>
-          <select
-            className="form-select"
-            value={selectedTeacherId}
-            onChange={(e) => setSelectedTeacherId(e.target.value)}
-          >
-            {teachers.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} ({t.subject})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Kelas */}
-        <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label">Kelas Yang Diabsen</label>
-          <select
-            className="form-select"
-            value={selectedClassId}
-            onChange={(e) => setSelectedClassId(e.target.value)}
-          >
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} - {c.major}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Jam Pelajaran */}
-        <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label">Jam Pelajaran Ke-</label>
-          <select
-            className="form-select"
-            value={selectedPeriodId}
-            onChange={(e) => setSelectedPeriodId(e.target.value)}
-          >
-            {periods
-              .filter((p) => p.is_active)
-              .map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.start_time} - {p.end_time})
-                </option>
-              ))}
-          </select>
-        </div>
-
-        {/* Tanggal */}
-        <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label">Tanggal Presensi</label>
-          <input
-            type="date"
-            className="form-input"
-            value={sessionDate}
-            onChange={(e) => setSessionDate(e.target.value)}
-          />
-        </div>
-      </div>
-
       {/* Main Two-Column Scanner Interface */}
       <div
         style={{
@@ -467,6 +408,108 @@ export const ScannerView: React.FC = () => {
               autoPlay
             />
             <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+            {/* In-Camera Transparent White Session HUD (Guru, Kelas, Jam Ke-, Tanggal) */}
+            <div className="scanner-cam-hud">
+              <div className="cam-hud-header">
+                <div className="cam-hud-title">
+                  <SlidersHorizontal size={14} color="#ffffff" />
+                  <span>Pengaturan Sesi Presensi</span>
+                  {!isCamHudExpanded && (
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 500, opacity: 0.9 }}>
+                      • {classes.find((c) => c.id === selectedClassId)?.name || 'Kelas'} •{' '}
+                      {periods.find((p) => p.id === selectedPeriodId)?.name || 'Jam Pelajaran'}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCamHudExpanded(!isCamHudExpanded)}
+                  className="cam-hud-toggle-btn"
+                  title={isCamHudExpanded ? 'Sembunyikan Pengaturan' : 'Tampilkan Pengaturan'}
+                >
+                  <span>{isCamHudExpanded ? 'Sembunyikan' : 'Ubah Sesi'}</span>
+                  {isCamHudExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                </button>
+              </div>
+
+              {isCamHudExpanded && (
+                <div className="cam-hud-grid">
+                  {/* Guru */}
+                  <div className="cam-hud-item">
+                    <label className="cam-hud-label">
+                      <UserCheck size={12} />
+                      <span>Guru</span>
+                    </label>
+                    <select
+                      className="cam-hud-control"
+                      value={selectedTeacherId}
+                      onChange={(e) => setSelectedTeacherId(e.target.value)}
+                    >
+                      {teachers.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} ({t.subject})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Kelas */}
+                  <div className="cam-hud-item">
+                    <label className="cam-hud-label">
+                      <GraduationCap size={12} />
+                      <span>Kelas</span>
+                    </label>
+                    <select
+                      className="cam-hud-control"
+                      value={selectedClassId}
+                      onChange={(e) => setSelectedClassId(e.target.value)}
+                    >
+                      {classes.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} - {c.major}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Jam Pelajaran */}
+                  <div className="cam-hud-item">
+                    <label className="cam-hud-label">
+                      <Clock size={12} />
+                      <span>Jam Ke-</span>
+                    </label>
+                    <select
+                      className="cam-hud-control"
+                      value={selectedPeriodId}
+                      onChange={(e) => setSelectedPeriodId(e.target.value)}
+                    >
+                      {periods
+                        .filter((p) => p.is_active)
+                        .map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {/* Tanggal */}
+                  <div className="cam-hud-item">
+                    <label className="cam-hud-label">
+                      <Calendar size={12} />
+                      <span>Tanggal</span>
+                    </label>
+                    <input
+                      type="date"
+                      className="cam-hud-control"
+                      value={sessionDate}
+                      onChange={(e) => setSessionDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Laser scanning line effect when camera is active */}
             {isCameraActive && <div className="scanner-laser-line" />}
