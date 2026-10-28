@@ -26,6 +26,7 @@ export interface TeacherItem {
 export interface PeriodItem {
   id: string;
   period_number: number;
+  period_end_number?: number; // For multi-period blocks e.g. Jam 1-2, 5-6, 8-9
   name: string;
   start_time: string; // e.g. "07:00"
   end_time: string;   // e.g. "07:45"
@@ -53,6 +54,8 @@ export interface AttendanceItem {
   class_id: string;
   teacher_id?: string;
   period_id?: string;
+  period_number?: number;     // e.g. 1
+  period_end_number?: number; // e.g. 2 for range Jam 1-2
   date: string;       // YYYY-MM-DD
   scan_time: string;  // HH:mm:ss
   status: AttendanceStatus;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/Navbar';
 import { DashboardView } from './views/DashboardView';
@@ -9,10 +9,33 @@ import { ClassesView } from './views/ClassesView';
 import { TeachersView } from './views/TeachersView';
 import { PeriodsView } from './views/PeriodsView';
 import { SettingsView } from './views/SettingsView';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, ScanFace, Grid3X3, LayoutDashboard, Database } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
-  const { activeTab } = useApp();
+  const { activeTab, setActiveTab } = useApp();
+
+  // Support direct deep-linking / intent calls from Android APK (e.g. ?tab=scanner or #scan)
+  useEffect(() => {
+    const handleLocationChange = () => {
+      const hash = window.location.hash.toLowerCase();
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+
+      if (hash === '#scan' || tabParam === 'scanner' || tabParam === 'scan') {
+        setActiveTab('scanner');
+      } else if (hash === '#rekap' || tabParam === 'rekap') {
+        setActiveTab('rekap');
+      } else if (hash === '#students' || tabParam === 'students') {
+        setActiveTab('students');
+      } else if (hash === '#periods' || tabParam === 'periods') {
+        setActiveTab('periods');
+      }
+    };
+
+    handleLocationChange();
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => window.removeEventListener('hashchange', handleLocationChange);
+  }, [setActiveTab]);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -83,6 +106,38 @@ const MainLayout: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Mobile Quick Action Dock (Specifically for Android Phone / APK) */}
+      <div className="mobile-action-dock no-print">
+        <button
+          onClick={() => setActiveTab('scanner')}
+          className={`dock-btn ${activeTab === 'scanner' ? 'active-emerald' : ''}`}
+        >
+          <ScanFace size={20} />
+          <span>Scan Absen</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('rekap')}
+          className={`dock-btn ${activeTab === 'rekap' ? 'active-blue' : ''}`}
+        >
+          <Grid3X3 size={20} />
+          <span>Rekap Matriks</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('dashboard')}
+          className={`dock-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+        >
+          <LayoutDashboard size={20} />
+          <span>Dashboard</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`dock-btn ${activeTab === 'settings' ? 'active' : ''}`}
+        >
+          <Database size={20} />
+          <span>Cloud</span>
+        </button>
+      </div>
     </div>
   );
 };

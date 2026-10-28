@@ -223,12 +223,18 @@ export const ScannerView: React.FC = () => {
               audioFeedback.playAlreadyScanned();
             } else {
               // Mark present
+              const curPeriod = periods.find((p) => p.id === selectedPeriodId);
+              const startNum = curPeriod?.period_number || 1;
+              const endNum = curPeriod?.period_end_number || startNum;
               const currentTimeStr = new Date().toTimeString().split(' ')[0];
+
               await saveAttendanceRecord({
                 student_id: student.id,
                 class_id: selectedClassId,
                 teacher_id: selectedTeacherId || undefined,
                 period_id: selectedPeriodId || undefined,
+                period_number: startNum,
+                period_end_number: endNum,
                 date: sessionDate,
                 scan_time: currentTimeStr,
                 status: 'hadir',
@@ -296,12 +302,18 @@ export const ScannerView: React.FC = () => {
     status: AttendanceStatus,
     notes?: string
   ) => {
+    const curPeriod = periods.find((p) => p.id === selectedPeriodId);
+    const startNum = curPeriod?.period_number || 1;
+    const endNum = curPeriod?.period_end_number || startNum;
     const currentTimeStr = new Date().toTimeString().split(' ')[0];
+
     await saveAttendanceRecord({
       student_id: studentId,
       class_id: selectedClassId,
       teacher_id: selectedTeacherId || undefined,
       period_id: selectedPeriodId || undefined,
+      period_number: startNum,
+      period_end_number: endNum,
       date: sessionDate,
       scan_time: currentTimeStr,
       status,

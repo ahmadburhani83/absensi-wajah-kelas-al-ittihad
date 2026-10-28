@@ -18,7 +18,8 @@ class FaceRecognitionService {
 
     this.loadingPromise = (async () => {
       try {
-        const MODEL_URL = '/models';
+        const baseUrl = import.meta.env.BASE_URL || './';
+        const MODEL_URL = (baseUrl.endsWith('/') ? baseUrl : baseUrl + '/') + 'models';
         console.log('Memuat neural network models dari', MODEL_URL, '...');
         
         await Promise.all([

@@ -11,14 +11,11 @@ const STORAGE_KEYS = {
 
 // Initial Seed Data for immediate testing without setup
 const SEED_PERIODS: PeriodItem[] = [
-  { id: 'p-1', period_number: 1, name: 'Jam Ke-1', start_time: '07:00', end_time: '07:45', is_active: true },
-  { id: 'p-2', period_number: 2, name: 'Jam Ke-2', start_time: '07:45', end_time: '08:30', is_active: true },
-  { id: 'p-3', period_number: 3, name: 'Jam Ke-3', start_time: '08:30', end_time: '09:15', is_active: true },
-  { id: 'p-4', period_number: 4, name: 'Jam Ke-4', start_time: '09:30', end_time: '10:15', is_active: true },
-  { id: 'p-5', period_number: 5, name: 'Jam Ke-5', start_time: '10:15', end_time: '11:00', is_active: true },
-  { id: 'p-6', period_number: 6, name: 'Jam Ke-6', start_time: '11:00', end_time: '11:45', is_active: true },
-  { id: 'p-7', period_number: 7, name: 'Jam Ke-7', start_time: '12:30', end_time: '13:15', is_active: true },
-  { id: 'p-8', period_number: 8, name: 'Jam Ke-8', start_time: '13:15', end_time: '14:00', is_active: true },
+  { id: 'p-1', period_number: 1, period_end_number: 2, name: 'Jam Ke 1-2', start_time: '07:00', end_time: '08:30', is_active: true },
+  { id: 'p-2', period_number: 3, period_end_number: 4, name: 'Jam Ke 3-4', start_time: '08:30', end_time: '10:00', is_active: true },
+  { id: 'p-3', period_number: 5, period_end_number: 5, name: 'Jam Ke 5', start_time: '10:15', end_time: '11:00', is_active: true },
+  { id: 'p-4', period_number: 6, period_end_number: 7, name: 'Jam Ke 6-7', start_time: '11:00', end_time: '12:30', is_active: true },
+  { id: 'p-5', period_number: 8, period_end_number: 9, name: 'Jam Ke 8-9', start_time: '13:00', end_time: '14:30', is_active: true },
 ];
 
 const SEED_CLASSES: ClassItem[] = [
