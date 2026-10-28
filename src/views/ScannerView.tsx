@@ -21,6 +21,9 @@ import {
   SlidersHorizontal,
   ChevronDown,
   ChevronUp,
+  Maximize2,
+  Minimize2,
+  FlipHorizontal,
 } from 'lucide-react';
 import type { AttendanceStatus, MatchResult } from '../types';
 
@@ -57,6 +60,17 @@ export const ScannerView: React.FC = () => {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  // Close fullscreen on ESC key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsFullscreen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Scanning Runtime State
   const [activeMatches, setActiveMatches] = useState<MatchResult[]>([]);
@@ -141,8 +155,8 @@ export const ScannerView: React.FC = () => {
     setActiveMatches([]);
   }, []);
 
-  // Start camera
-  const startCamera = async () => {
+  // Start camera with responsive aspect & facingMode
+  const startCamera = async (targetFacing = facingMode, targetDeviceId = selectedDeviceId) => {
     setCameraError(null);
     try {
       if (!faceRecognitionService.isReady()) {
@@ -153,9 +167,10 @@ export const ScannerView: React.FC = () => {
 
       const constraints: MediaStreamConstraints = {
         video: {
-          deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
-          width: { ideal: 640 },
-          height: { ideal: 480 },
+          deviceId: targetDeviceId ? { exact: targetDeviceId } : undefined,
+          facingMode: targetDeviceId ? undefined : { ideal: targetFacing },
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
         },
       };
 
@@ -171,6 +186,19 @@ export const ScannerView: React.FC = () => {
       const msg = err instanceof Error ? err.message : String(err);
       setCameraError(`Tidak dapat mengakses kamera: ${msg}`);
       setIsCameraActive(false);
+    }
+  };
+
+  // Switch between back camera (environment) and front camera (user)
+  const handleToggleFacingMode = async () => {
+    const nextMode = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(nextMode);
+    setSelectedDeviceId(''); // clear manual device ID so facingMode is applied
+    if (isCameraActive) {
+      stopCamera();
+      setTimeout(() => {
+        startCamera(nextMode, '');
+      }, 150);
     }
   };
 
@@ -351,18 +379,11 @@ export const ScannerView: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '24px 20px', maxWidth: '1440px', margin: '0 auto' }}>
+    <div className="scanner-view-wrapper">
       {/* Main Two-Column Scanner Interface */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(340px, 1.25fr) minmax(320px, 1fr)',
-          gap: '24px',
-          alignItems: 'start',
-        }}
-      >
+      <div className="scanner-grid-layout">
         {/* Left Column: Camera Viewfinder & HUD */}
-        <div className="glass-panel" style={{ padding: '24px' }}>
+        <div className="glass-panel scanner-camera-panel" style={{ padding: '24px' }}>
           <div
             style={{
               display: 'flex',
@@ -376,33 +397,50 @@ export const ScannerView: React.FC = () => {
               <h3 style={{ fontSize: '1.125rem' }}>Live Scanner Wajah Siswa</h3>
             </div>
 
-            {/* Camera selection dropdown if multiple cameras exist */}
-            {devices.length > 1 && (
-              <select
-                className="form-select"
-                style={{ width: 'auto', fontSize: '0.75rem', padding: '6px 10px' }}
-                value={selectedDeviceId}
-                onChange={(e) => {
-                  setSelectedDeviceId(e.target.value);
-                  if (isCameraActive) {
-                    stopCamera();
-                  }
-                }}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {/* Quick Flip Camera Button */}
+              <button
+                type="button"
+                onClick={handleToggleFacingMode}
+                className="btn btn-secondary btn-sm"
+                title={facingMode === 'environment' ? 'Ganti ke Kamera Depan' : 'Ganti ke Kamera Belakang'}
+                style={{ padding: '5px 10px', fontSize: '0.75rem', borderRadius: '8px' }}
               >
-                {devices.map((d, idx) => (
-                  <option key={d.deviceId} value={d.deviceId}>
-                    {d.label || `Kamera ${idx + 1}`}
-                  </option>
-                ))}
-              </select>
-            )}
+                <FlipHorizontal size={14} />
+                <span className="hide-on-mobile-sm">
+                  {facingMode === 'environment' ? 'Kamera Belakang' : 'Kamera Depan'}
+                </span>
+              </button>
+
+              {/* Camera selection dropdown if multiple cameras exist */}
+              {devices.length > 1 && (
+                <select
+                  className="form-select"
+                  style={{ width: 'auto', fontSize: '0.75rem', padding: '5px 10px' }}
+                  value={selectedDeviceId}
+                  onChange={(e) => {
+                    setSelectedDeviceId(e.target.value);
+                    if (isCameraActive) {
+                      stopCamera();
+                      setTimeout(() => startCamera(facingMode, e.target.value), 150);
+                    }
+                  }}
+                >
+                  {devices.map((d, idx) => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.label || `Kamera ${idx + 1}`}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
 
           {/* Camera Viewfinder Container */}
-          <div className="scanner-container">
+          <div className={`scanner-container ${isFullscreen ? 'fullscreen-mode' : ''}`}>
             <video
               ref={videoRef}
-              className="scanner-video"
+              className={`scanner-video ${facingMode === 'user' ? 'mirrored' : 'unmirrored'}`}
               playsInline
               muted
               autoPlay
@@ -422,15 +460,43 @@ export const ScannerView: React.FC = () => {
                     </span>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsCamHudExpanded(!isCamHudExpanded)}
-                  className="cam-hud-toggle-btn"
-                  title={isCamHudExpanded ? 'Sembunyikan Pengaturan' : 'Tampilkan Pengaturan'}
-                >
-                  <span>{isCamHudExpanded ? 'Sembunyikan' : 'Ubah Sesi'}</span>
-                  {isCamHudExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {/* Flip camera inside HUD */}
+                  <button
+                    type="button"
+                    onClick={handleToggleFacingMode}
+                    className="cam-hud-toggle-btn"
+                    title={facingMode === 'environment' ? 'Ganti ke Kamera Depan' : 'Ganti ke Kamera Belakang'}
+                  >
+                    <FlipHorizontal size={13} />
+                    <span className="hide-on-mobile-xs">
+                      {facingMode === 'environment' ? 'Kamera Belakang' : 'Kamera Depan'}
+                    </span>
+                  </button>
+
+                  {/* Fullscreen camera toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setIsFullscreen(!isFullscreen)}
+                    className="cam-hud-toggle-btn"
+                    title={isFullscreen ? 'Keluar Layar Penuh' : 'Layar Penuh Kamera'}
+                  >
+                    {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                    <span>{isFullscreen ? 'Kecilkan' : 'Layar Penuh'}</span>
+                  </button>
+
+                  {/* Toggle expand/collapse HUD */}
+                  <button
+                    type="button"
+                    onClick={() => setIsCamHudExpanded(!isCamHudExpanded)}
+                    className="cam-hud-toggle-btn"
+                    title={isCamHudExpanded ? 'Sembunyikan Pengaturan' : 'Tampilkan Pengaturan'}
+                  >
+                    <span>{isCamHudExpanded ? 'Sembunyikan' : 'Ubah Sesi'}</span>
+                    {isCamHudExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  </button>
+                </div>
               </div>
 
               {isCamHudExpanded && (
@@ -517,37 +583,103 @@ export const ScannerView: React.FC = () => {
             {/* Overlays / Target Bounding Boxes */}
             {isCameraActive && (
               <div className="scanner-overlay">
-                {activeMatches.map((match, i) => (
-                  <div
-                    key={i}
-                    className="hud-target-box"
-                    style={{
-                      left: `${(match.box.x / (videoRef.current?.videoWidth || 640)) * 100}%`,
-                      top: `${(match.box.y / (videoRef.current?.videoHeight || 480)) * 100}%`,
-                      width: `${(match.box.width / (videoRef.current?.videoWidth || 640)) * 100}%`,
-                      height: `${(match.box.height / (videoRef.current?.videoHeight || 480)) * 100}%`,
-                    }}
-                  >
+                {activeMatches.map((match, i) => {
+                  const videoW = videoRef.current?.videoWidth || 640;
+                  const videoH = videoRef.current?.videoHeight || 480;
+                  const boxLeft =
+                    facingMode === 'user'
+                      ? ((videoW - match.box.x - match.box.width) / videoW) * 100
+                      : (match.box.x / videoW) * 100;
+
+                  return (
                     <div
+                      key={i}
+                      className="hud-target-box"
                       style={{
-                        position: 'absolute',
-                        bottom: '-28px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: 'rgba(16, 185, 129, 0.95)',
-                        color: '#ffffff',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        fontSize: '0.6875rem',
-                        fontWeight: 700,
-                        whiteSpace: 'nowrap',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+                        left: `${boxLeft}%`,
+                        top: `${(match.box.y / videoH) * 100}%`,
+                        width: `${(match.box.width / videoW) * 100}%`,
+                        height: `${(match.box.height / videoH) * 100}%`,
                       }}
                     >
-                      {match.student.name} • {match.confidence}%
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: '-28px',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          background: 'rgba(16, 185, 129, 0.95)',
+                          color: '#ffffff',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '0.6875rem',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+                        }}
+                      >
+                        {match.student.name} • {match.confidence}%
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Fullscreen Floating Bottom Bar */}
+            {isFullscreen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '16px',
+                  left: '16px',
+                  right: '16px',
+                  zIndex: 25,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: 'rgba(0, 0, 0, 0.72)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  padding: '10px 16px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  color: '#ffffff',
+                  flexWrap: 'wrap',
+                  gap: '10px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#34d399' }}>
+                    Hadir: {hadirCount} / {totalStudents} ({progressPercent}%)
+                  </span>
+                  {recentScannedName && (
+                    <span style={{ fontSize: '0.75rem', opacity: 0.9 }}>
+                      • Terdeteksi: <strong>{recentScannedName.name}</strong> ({recentScannedName.time})
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={handleToggleFacingMode}
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                  >
+                    <FlipHorizontal size={14} />
+                    <span>Putar Kamera</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsFullscreen(false)}
+                    className="btn btn-danger btn-sm"
+                    style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                  >
+                    <Minimize2 size={14} />
+                    <span>Keluar Layar Penuh</span>
+                  </button>
+                </div>
               </div>
             )}
 

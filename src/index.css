@@ -284,6 +284,35 @@ h1, h2, h3, h4, .font-display {
 }
 
 /* Camera & Scanner View */
+.scanner-grid-layout {
+  display: grid;
+  grid-template-columns: minmax(340px, 1.3fr) minmax(300px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .scanner-grid-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.scanner-view-wrapper {
+  padding: 24px 20px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+@media (max-width: 640px) {
+  .scanner-view-wrapper {
+    padding: 10px 8px;
+  }
+  .scanner-camera-panel {
+    padding: 12px 10px !important;
+  }
+}
+
 .scanner-container {
   position: relative;
   width: 100%;
@@ -292,13 +321,42 @@ h1, h2, h3, h4, .font-display {
   background: #000;
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
   aspect-ratio: 4 / 3;
+  transition: all 0.25s ease;
+}
+
+@media (max-width: 640px) {
+  .scanner-container {
+    aspect-ratio: 16 / 11;
+    max-height: 55vh;
+  }
+}
+
+/* Fullscreen Camera Mode (Menyesuaikan Layar HP Android Penuh) */
+.scanner-container.fullscreen-mode {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  z-index: 9999 !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
 }
 
 .scanner-video {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: scaleX(-1); /* Mirror camera for natural feel */
+  transition: transform 0.2s ease;
+}
+
+.scanner-video.mirrored {
+  transform: scaleX(-1); /* Mirror front camera for natural selfie look */
+}
+
+.scanner-video.unmirrored {
+  transform: none; /* Back camera without mirroring */
 }
 
 .scanner-overlay {
